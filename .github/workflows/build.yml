@@ -1,0 +1,94 @@
+name: Titan-Modern-Build
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup and Build
+        run: |
+          # ডিরেক্টরি নিশ্চিত করা
+          mkdir -p app/src/main/java/com/titan/adguard
+          mkdir -p app/src/main/res/values
+
+          # ১. settings.gradle (Modern Format)
+          cat <<EOT > settings.gradle
+          pluginManagement {
+              repositories { google(); mavenCentral(); gradlePluginPortal() }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories { google(); mavenCentral() }
+          }
+          rootProject.name = "AdGuardTitan"
+          include ':app'
+          EOT
+
+          # ২. build.gradle (Root)
+          cat <<EOT > build.gradle
+          plugins {
+              id 'com.android.application' version '8.2.1' apply false
+          }
+          EOT
+
+          # ৩. app/build.gradle (তোর ওই '৪ নম্বর লাইনের' এরর ফিক্স করা হয়েছে)
+          cat <<EOT > app/build.gradle
+          plugins {
+              id 'com.android.application'
+          }
+          android {
+              namespace 'com.titan.adguard'
+              compileSdk 34
+              defaultConfig {
+                  applicationId "com.titan.adguard"
+                  minSdk 24
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0"
+              }
+          }
+          dependencies {
+              implementation 'androidx.appcompat:appcompat:1.6.1'
+              implementation 'com.google.android.material:material:1.9.0'
+          }
+          EOT
+
+          # ৪. সোর্স ফাইল
+          cat <<EOT > app/src/main/AndroidManifest.xml
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <application android:label="AdGuard Titan" android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+                  <activity android:name=".MainActivity" android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOT
+
+          cat <<EOT > app/src/main/java/com/titan/adguard/MainActivity.java
+          package com.titan.adguard;
+          import android.os.Bundle;
+          import androidx.appcompat.app.AppCompatActivity;
+          public class MainActivity extends AppCompatActivity {
+              @Override protected void onCreate(Bundle s) { super.onCreate(s); }
+          }
+          EOT
+
+          # সরাসরি লেটেস্ট গ্রেডল দিয়ে বিল্ড
+          gradle assembleDebug --stacktrace --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AdGuard-Titan-Final
+          path: app/build/outputs/apk/debug/*.apk
